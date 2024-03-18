@@ -1,0 +1,97 @@
+#include <LiquidCrystal.h>
+LiquidCrystal lcd(13,12,11,10,9,8);
+#include <SoftwareSerial.h>
+SoftwareSerial mySerial(2,3);
+const int trigPin = 6;
+const int echoPin = 7;
+#define REPORTING_PERIOD_MS 3000
+int gas_val=0;
+long duration=0,speedkm=0;
+int distance;
+uint32_t tsLastReport = 0;
+char level_arr[4],gas_arr[4];
+char dat[10]={};
+void default_display()
+{
+lcd.setCursor(0,0);
+lcd.print("Garbage Monitoring");
+lcd.setCursor(0,1);
+lcd.print(" System ");
+}
+void chk_distance()
+{
+digitalWrite(trigPin, LOW);
+delayMicroseconds(2);
+digitalWrite(trigPin, HIGH);
+delayMicroseconds(10);
+digitalWrite(trigPin, LOW);
+duration = pulseIn(echoPin, HIGH);
+// distance= duration/2;
+distance = duration * 0.034 / 2;
+distance=30-distance;
+if(distance>=30 || distance<=3)
+distance=0;
+Serial.print("Level:");
+Serial.println(distance);
+
+lcd.setCursor(13,1);
+lcd.print(" ");
+lcd.setCursor(13,1);
+lcd.print(distance);
+delay(200);
+}
+void setup()
+{
+Serial.begin(9600);
+mySerial.begin(9600);
+pinMode(trigPin, OUTPUT);
+pinMode(echoPin, INPUT);
+lcd.begin(16,2);
+default_display();
+delay(2000);
+lcd.setCursor(0,1);
+lcd.print("Gas: Lev: ");
+
+}
+
+void loop()
+{
+gas_val=analogRead(A0)/4;
+if(gas_val<20)
+gas_val=0;
+lcd.setCursor(4,1);
+lcd.print(" ");
+lcd.setCursor(4,1);
+lcd.print(gas_val);
+chk_distance();
+Serial.print("Gas-Val:");
+Serial.println(gas_val);
+delay(500);
+if (millis() - tsLastReport > REPORTING_PERIOD_MS)
+{
+/*mySerial.print("level:");
+mySerial.println(distance);
+mySerial.print("Gas-Val:");
+mySerial.println(gas_val);*/
+delay(200);
+sprintf(level_arr,"%2d",distance);
+sprintf(gas_arr,"%2d",gas_val);
+dat[0]=level_arr[0];
+dat[1]=level_arr[1];
+dat[2]=gas_arr[0];
+dat[3]=gas_arr[1];
+
+if(distance<=9)
+{
+dat[0]='0';
+dat[1]=level_arr[1];
+}
+if(gas_val<=9)
+{
+dat[2]='0';
+dat[3]=gas_arr[1];
+}
+dat[4]='#';
+mySerial.write(dat,5);
+tsLastReport = millis();
+}
